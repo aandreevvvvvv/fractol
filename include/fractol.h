@@ -14,9 +14,11 @@
 # define FRACTOL_H
 
 # include <stddef.h>
+# include <pthread.h>
 
-# define WIDTH 500
-# define HEIGHT 500
+# define WIDTH 1000
+# define HEIGHT 1000
+# define THREADS_COUNT 16
 # define MAX_ITERS 150
 # define ZOOM_STEP 0.8
 # define MOVE_STEP 5
@@ -49,10 +51,15 @@ typedef struct s_fractal
 	int			**depth;
 }	t_fractal;
 
+typedef struct s_thread_state
+{
+	t_fractal*	fractal;
+	size_t		thread_number;
+}	t_thread_state;
+
 t_fractal		*parse(int argc, char **argv);
 t_mlx			*init(t_fractal *fractal);
 void			draw(t_fractal *fractal);
-void			paint(t_fractal *fractal);
 
 void			my_mlx_pixel_put(t_mlx *mlx, int x, int y, int color);
 int				create_trgb(int t, int r, int g, int b);

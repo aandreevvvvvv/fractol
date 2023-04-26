@@ -15,6 +15,9 @@
 #include "libft.h"
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <pthread.h>
 
 static t_complex	get_pos(size_t w, size_t h, t_fractal *fractal)
 {
@@ -32,50 +35,60 @@ static int	get_color(int depth, int max_depth, int color)
 							(depth + 7 * color + 8) % 16 * 16));
 }
 
-void	paint(t_fractal *fractal)
+void	*calculate(void* arg)
 {
-	size_t	w;
-	size_t	h;
+	t_thread_state	*thread_state;
+	size_t			w;
+	size_t			h;
 
+	thread_state = (t_thread_state *) arg;
 	w = 0;
 	while (w < WIDTH)
 	{
+		if (w % THREADS_COUNT != thread_state->thread_number)
+		{
+			++w;
+			continue;
+		}
 		h = 0;
 		while (h < HEIGHT)
 		{
-			my_mlx_pixel_put(fractal->mlx, w, h, \
-		get_color(fractal->depth[w][h], MAX_ITERS, fractal->color));
+			thread_state->fractal->depth[w][h] = thread_state->fractal->formula(get_pos(w, h, thread_state->fractal), thread_state->fractal);
+			my_mlx_pixel_put(thread_state->fractal->mlx, w, h, get_color(thread_state->fractal->depth[w][h], MAX_ITERS, thread_state->fractal->color));
 			++h;
 		}
 		++w;
 	}
-	mlx_put_image_to_window(fractal->mlx->mlx, fractal->mlx->win, \
-							fractal->mlx->img, 0, 0);
+	return (NULL);
 }
 
 void	draw(t_fractal *fractal)
 {
-	size_t	w;
-	size_t	h;
+	struct timeval	start_timeval;
+	struct timeval	end_timeval;
+	t_thread_state	*thread_states;
+	pthread_t		*threads;
+	size_t			thread_idx;
 
-	free_depth(fractal);
-	fractal->depth = malloc(WIDTH * sizeof(int *));
-	if (!fractal->depth)
-		exit(1);
-	w = 0;
-	while (w < WIDTH)
+	threads = malloc(THREADS_COUNT * sizeof(pthread_t *));
+	thread_states = malloc(THREADS_COUNT * sizeof(t_thread_state));
+	gettimeofday(&start_timeval, NULL);
+	thread_idx = 0;
+	while (thread_idx < THREADS_COUNT)
 	{
-		fractal->depth[w] = malloc(HEIGHT * sizeof(int));
-		if (!fractal->depth[w])
-			exit(1);
-		h = 0;
-		while (h < HEIGHT)
-		{
-			fractal->depth[w][h] = fractal->formula(get_pos(w, h, fractal), \
-																fractal);
-			++h;
-		}
-		++w;
+		thread_states[thread_idx].fractal = fractal;
+		thread_states[thread_idx].thread_number = thread_idx;
+		pthread_create(&threads[thread_idx], NULL, calculate, &thread_states[thread_idx]);
+		++thread_idx;
 	}
-	paint(fractal);
+	thread_idx = 0;
+	while (thread_idx < THREADS_COUNT)
+	{
+		pthread_join(threads[thread_idx++], NULL);
+	}
+	mlx_put_image_to_window(fractal->mlx->mlx, fractal->mlx->win, fractal->mlx->img, 0, 0);
+	gettimeofday(&end_timeval, NULL);
+	printf("calc time: %ld ms\n", (end_timeval.tv_sec - start_timeval.tv_sec) * 1000 + (end_timeval.tv_usec - start_timeval.tv_usec) / 1000);
+	free(threads);
+	free(thread_states);
 }

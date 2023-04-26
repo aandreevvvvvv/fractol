@@ -67,7 +67,7 @@ static int	key_handler(int key_code, void *param)
 	else if (key_code == C)
 	{
 		frac->color += 2;
-		paint(frac);
+		draw(frac);
 		return (0);
 	}
 	else if (key_code == UP)
